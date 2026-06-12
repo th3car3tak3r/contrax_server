@@ -1,33 +1,66 @@
 Contrax Server
+Contrax Server is a configuration-driven application runtime engine built in Rust. Instead of hardcoding network endpoints and business logic routines into a compiled binary, the server parses a declarative JSON manifest at startup to dynamically assemble its routing matrix and asynchronous execution pipelines.
 
-Contrax Server is a lightweight, configuration-driven application server built in Rust. Instead of hardcoding API routes and business logic directly into the application source code, this engine parses a declarative JSON manifest at startup to dynamically assemble network endpoints and asynchronous execution pipelines.
+By separating the network transport layer from core application logic, Contrax is structurally protocol-agnostic—capable of orchestrating HTTP requests, persistent WebSocket connections, or real-time UDP datagram streams through a single, unified execution loop.
 
-By separating the transport network layer from the core application logic, the runtime provides a decoupled architecture capable of orchestrating web APIs, persistent socket connections, or real-time network traffic through a single, stateless binary.
+🏗️ System Architecture & Data Flow
+The engine is engineered around three structural layers designed to isolate execution state, enforce type constraints across dynamic boundaries, and minimize allocation overhead.
 
-🛠️ Core Architectural Components
-The engine is split into three distinct structural layers designed to safely manage data flow and multi-threaded execution:
+                  ┌────────────────────────────────────────┐
+                  │          Inbound Network Frame         │
+                  │        (HTTP / WebSocket / UDP)        │
+                  └───────────────────┬────────────────────┘
+                                      │
+                                      ▼
+                  ┌────────────────────────────────────────┐
+                  │       DynamicContext Allocation        │
+                  │    - Shared State (Arc<RwLock<>>)      │
+                  └───────────────────┬────────────────────┘
+                                      │
+                                      ▼
+                  ┌────────────────────────────────────────┐
+                  │     Pipeline Processing Execution      │
+                  │     Vec<Arc<dyn DynamicContract>>       │
+                  └───────────┬────────────────────┬───────┘
+                              │                    │
+            [Step 1: Extractor Wrapper]  [Step 2: Concrete Logic Execution]
+                              │                    │
+                              ▼                    ▼
+                  ┌──────────────────────┐  ┌──────────────────────┐
+                  │  Argument Mapping    │  │  Struct Validation   │
+                  │  & JSON Deserialization│  │  & Mutable Commit    │
+                  └──────────────────────┘  └──────────────────────┘
+1. The Dynamic Context (Data Isolation Layer)
+Upon intercepting a network frame, the server instantiates a universal DynamicContext. This structure acts as the single source of truth for the duration of a request pipeline. It encapsulates an isolated, thread-safe memory registry wrapped in an atomic reader-writer lock (Arc<RwLock<serde_json::Map<String, Value>>>). This ensures that concurrent tasks or sequential pipeline steps can safely read from and mutate state parameters without data races.
 
-1. The Dynamic Context (Data Layer)
-When a network frame hits the server, it is immediately translated into a universal DynamicContext. This context contains an isolated, thread-safe memory space (Arc<RwLock<...>>) that acts as a shared state pool for the duration of that specific request pipeline.
+2. The Contract Blueprint (Type Erasure & Abstraction)
+Execution steps—such as input validation, request decoration, or domain-specific business logic—are decoupled into individual components implementing the InnerContract blueprint.
 
-2. The Contract Blueprint (Abstraction Layer)
-Every execution step—whether it is a data validation check, an authentication layer, or a database handler—is modeled as a "Contract." The server relies on an explicit trait architecture (DynamicContract) to enforce strict type-erasure (Dynamic Dispatch). This allows heterogenous blocks of logic to be stored, managed, and executed sequentially within a single asynchronous runtime vector.
+To manage these heterogeneous blocks within a single sequential pipeline vector, the runtime utilizes type erasure via dynamic dispatch (dyn DynamicContract). This allows the server to compile diverse logical routines into a uniform Vec<Arc<dyn DynamicContract>> at boot time, executing them sequentially without needing to know their concrete underlying structures at compilation.
 
-3. The Marshalling Wrapper (Execution Layer)
-Because contracts require strongly-typed data structures to run safely, the engine utilizes a generic container wrapper (ManifestContractWrapper<T: InnerContract>). This wrapper acts as an automated data pipeline: it extracts un-typed JSON arguments mapped by the manifest, deserializes them directly into the contract's explicit target Input struct, runs structural validation checks, and securely commits the logic back to the shared memory pool.
+3. The Marshalling Wrapper (Data Pipeline Gateway)
+Because core contracts require strictly-typed structures to execute safely, the runtime bridges the gap between raw manifest arguments and typed logic using a generic container wrapper (ManifestContractWrapper<T: InnerContract>).
 
-🧠 Systems Engineering Showcase
-This repository serves as a portfolio piece demonstrating intermediate-to-advanced systems programming patterns in Rust, specifically focused on building production-grade infrastructure:
+When a pipeline step executes, the wrapper performs automated data marshalling:
 
-Asynchronous Lifetimes & Future Boxing: Leverages BoxFuture<'static, ...> heap allocations to overcome trait limitations with asynchronous functions, ensuring clean compatibility with the multi-threaded Tokio runtime.
+It resolves declarative path pointers against the DynamicContext.
 
-Thread-Safe Concurrency Boundaries: Enforces strict Send + Sync marker traits across all dynamic steps, guaranteeing that the server can safely distribute incoming connections across multiple CPU cores without data races or memory corruption.
+It evaluates and maps raw arguments into an intermediate JSON structure.
 
-Memory and Fault Isolation: Built using a type-state pattern that ensures validation failures or unexpected thread panics are safely caught within the execution boundary of an isolated contract node, preventing cascades that could crash the entire server.
+It deserializes the arguments directly into the contract's explicit Input associated type using bounded generics.
 
-Protocol-Agnostic Design: The internal execution loop functions completely independently of the network protocol frame. The engine is natively architected to process HTTP requests via Actix-web, persistent WebSockets, or high-frequency game-server UDP datagrams through the exact same underlying logic pipelines.
+It triggers structural constraints verification and dispatches the data to the target execution block, returning the output back to the context registry.
 
-🚀 Future Roadmap: Ahead-of-Time WASM (CWASM)
-The architecture is actively scaling toward decoupling contract development entirely from the main codebase via WebAssembly.
+⚡ Concurrency & Memory Model
+Contrax Server is engineered to optimize performance across multi-threaded asynchronous runtimes like Tokio:
 
-By migrating to an Ahead-of-Time (AOT) compilation model using wasmtime's .cwasm format, external developers will be able to author execution pipelines in any systems language (Rust, C++, Go, Zig), compile them to native architecture-specific instructions, and drop them into a running server. This achieves total runtime plugin extensibility and native-level execution speed, all while maintaining WebAssembly’s strict sandbox isolation boundaries.
+Heap-Allocated Futures: Because asynchronous functions in Rust compute anonymous, unnamable types at compile time, traits cannot natively yield standard futures. Contrax resolves this by utilizing BoxFuture<'static, Result<T, E>> type boundaries, enabling seamless dynamic dispatch across thread lines.
+
+Thread-Safety Constraints: Every abstract contract layer strictly enforces Send + Sync markers. This guarantees that the entire routing matrix can be safely distributed and executed across a shared multi-threaded CPU worker pool.
+
+Failure Boundaries: The execution loop operates via a strict type-state boundary. Validation faults or internal thread panics originating inside an isolated contract step are caught cleanly at the wrapper margin. This prevents cascading crashes and allows the server to terminate the current pipeline while keeping adjacent connections active.
+
+🔮 Ahead-of-Time WASM (CWASM) Roadmap
+The runtime layout is architected to decouple plugin development entirely from the core engine binary using WebAssembly.
+
+By leveraging an Ahead-of-Time (AOT) compilation paradigm via wasmtime's .cwasm format, the server will ingest pre-compiled native machine artifacts generated from any language supporting a WebAssembly target toolchain (Rust, C++, Go, Zig). The engine will stream payloads directly into the WASM instance's isolated linear memory spaces, achieving total cross-language plugin hot-swapping at near-native execution velocity while preserving absolute sandbox security.
