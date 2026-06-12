@@ -10,7 +10,7 @@ pub struct Input {
     #[validate(length(
         min = 1,
         max = 6,
-        message = "UserId must be between 1 and 36 characters"
+        message = "UserId must be between 1 and 6 characters"
     ))]
     pub user_id: String,
 }
