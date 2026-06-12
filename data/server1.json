@@ -1,0 +1,32 @@
+{
+  "server_name": "contrax_debug_server",
+  "version": "1.0.0",
+  "method": "get",
+  "routes": [
+    {
+      "name": "fetch_and_provision_user",
+      "path": "/users/{value}",
+      "contracts": [
+        {
+          "id": "users::create",
+          "inputs": {
+            "user_id": "ctx(/path/value)"
+          }
+        },
+        {
+          "id": "users::get_by_id",
+          "inputs": {
+            "user_id": "ctx(/path/value)"
+          },
+          "target_store_key": "fetched_user_id"
+        }
+      ],
+      "output": {
+        "status": "success",
+        "requested_id": "ctx(/path/value)",
+        "profile_data": "ctx(/store/fetched_user_id)",
+        "hardcoded_version": 1
+      }
+    }
+  ]
+}
