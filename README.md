@@ -1,4 +1,5 @@
 Contrax Server
+
 Contrax Server is a lightweight, configuration-driven application server built in Rust. Instead of hardcoding API routes and business logic directly into the application source code, this engine parses a declarative JSON manifest at startup to dynamically assemble network endpoints and asynchronous execution pipelines.
 
 By separating the transport network layer from the core application logic, the runtime provides a decoupled architecture capable of orchestrating web APIs, persistent socket connections, or real-time network traffic through a single, stateless binary.
