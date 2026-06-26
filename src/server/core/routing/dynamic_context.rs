@@ -6,11 +6,10 @@ use tokio::sync::RwLock;
 pub struct DynamicContext {
     pub request: serde_json::Value,
     pub store: std::sync::Arc<tokio::sync::RwLock<serde_json::Map<String, serde_json::Value>>>,
-    pub http_request: actix_web::HttpRequest, // 💡 This field is missing in our route initializer!
+    pub http_request: actix_web::HttpRequest,
 }
 
 impl DynamicContext {
-    /// 💡 FIXED: Associated constructor to initialize an isolated execution frame context
     pub fn new(http_request: actix_web::HttpRequest, request_body: Value) -> Self {
         Self {
             request: request_body,

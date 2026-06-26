@@ -1,0 +1,46 @@
+{
+  "server_name": "contrax_debug_server",
+  "version": "1.0.0",
+  "routes": [
+    {
+      "name": "fetch_and_provision_user",
+      "path": "users/{value}",
+      "method": "GET",
+      "pipeline": [
+        {
+          "contracts::users::get_by_id": { "user_id": "ad83js" },
+          "set_store": { "user": "out" }
+        },
+
+        {
+          "FETCH": {
+            "url": "https://jsonplaceholder.typicode.com/posts/ctx(store/user/id)"
+          },
+          "set_store": { "posts_data": "out(body)" }
+        }
+      ],
+
+      "output": { "json": { "posts_data": "ctx(store/posts_data)" } }
+    }
+  ],
+
+  {
+  "name": "fetch_and_provision_user",
+  "pipeline": [
+    {
+      "contracts::users::get_by_id": { "user_id": "ad83js" },
+      "set_store": { "user": "out" }
+    },
+
+    {
+      "FETCH": {
+        "url": "https://jsonplaceholder.typicode.com/posts/ctx(store/user/id)"
+      },
+      "set_store": { "posts_data": "out(body)" }
+    }
+  ],
+
+  "output": { "json": { "posts_data": "ctx(store/posts_data)" } }
+}
+
+}

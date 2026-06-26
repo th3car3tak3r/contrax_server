@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct DynamicPipeline {
-    // 💡 CHANGED: The steps are wrapped in Arc so they can be cloned into the async loop
     pub steps: Vec<Arc<dyn DynamicContract>>,
 }
 

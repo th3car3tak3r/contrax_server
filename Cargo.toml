@@ -7,11 +7,12 @@ edition = "2024"
 actix-web = "4.13.0"
 actix-web-validator = "7.0.0"
 futures = "0.3.32"
+regex = "1.12.4"
 serde = { version = "1.0.228", features = ["derive"] }
 serde-aux = "4.7.0"
 serde_json = "1.0.150"
 tokio = "1.52.3"
 validator = { version = "0.20.0", features = ["derive"] }
-wasmtime = "45.0.1"
-wasmtime-wasi = "45.0.1"
+wasmtime = { version = "45.0.1", features = ["async", "runtime"] }
+wasmtime-wasi = { version = "45.0.1", features = ["p1"] }
 

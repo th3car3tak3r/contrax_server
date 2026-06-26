@@ -1,0 +1,16 @@
+{
+  "name": "fetch_and_provision_user",
+  "pipeline": [
+    {
+      "users::get_by_id": { "user_id": "ad83js" },
+      "set_store": {
+        "user": {
+          "username": "out(username)"
+        }
+      }
+    }
+  ],
+  "output": {
+    "html": "<!doctype html><html><body><h1> Hello {{ ctx(store/user/username) }}</h1></body></html>"
+  }
+}
