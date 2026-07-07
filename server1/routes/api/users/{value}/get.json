@@ -1,10 +1,10 @@
 {
-  "name": "test route return html",
+  "name": "REST_test_route",
   "pipeline": [
     {
       "users::get_by_id": { "user_id": "ad83js" },
       "->": {
-        "andy": {
+        "user": {
           "username": "out(username)"
         }
       }
@@ -19,6 +19,6 @@
     }
   ],
   "=>": {
-    "html": "<!doctype><html><body><h1>Hello {{ ctx(store/andy/username) }}!</h1><p>{{ ctx(store/posts) }}</p></body></html>"
+    "json": { "user": "ctx(store/user)", "posts": "ctx(store/posts)" }
   }
 }

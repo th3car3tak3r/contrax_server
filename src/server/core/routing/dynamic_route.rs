@@ -90,7 +90,6 @@ pub async fn dynamic_route(
                     )
                     .await;
 
-                println!("Compiled HTML Output: {}", compiled);
                 compiled
             }
             other => other.to_string(),

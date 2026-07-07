@@ -14,29 +14,48 @@ pub struct ContractDefinition {
     pub set_store_mappings: Option<serde_json::Map<String, Value>>,
 }
 
+// In src/server/core/manifest/manifest.rs
+
 impl<'de> Deserialize<'de> for ContractDefinition {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let mut raw_map = HashMap::<String, Value>::deserialize(deserializer)?;
+        // 1. Unpack the outer step block (e.g. { "GET": { ... }, "->": { ... } } or just { "GET": { ... } })
+        let mut raw_map = serde_json::Map::deserialize(deserializer)?;
 
-        let set_store_mappings = if let Some(Value::Object(map)) = raw_map.remove("set_store") {
-            Some(map)
-        } else {
-            None
-        };
+        // 2. Safely extract the framework arrow transformation if it was placed at the sibling level
+        let mut set_store_mappings = raw_map.remove("->").and_then(|v| match v {
+            Value::Object(m) => Some(m),
+            _ => None,
+        });
 
+        // 3. Find the real contract activation block (the key that isn't our internal tracking fields)
         let (id, inputs_val) = raw_map.into_iter().next().ok_or_else(|| {
             serde::de::Error::custom(
                 "Pipeline step layout must declare a target contract invocation.",
             )
         })?;
 
-        let inputs = match inputs_val {
-            Value::Object(obj) => obj.into_iter().collect(),
-            _ => HashMap::new(),
+        // 4. If the developer nested the "->" inside the contract block instead of next to it, extract it here
+        let mut inner_obj = match inputs_val {
+            Value::Object(obj) => obj,
+            _ => {
+                return Err(serde::de::Error::custom(format!(
+                    "Expected object configuration payload for contract key '{}'",
+                    id
+                )));
+            }
         };
+
+        if set_store_mappings.is_none() {
+            if let Some(Value::Object(map)) = inner_obj.remove("->") {
+                set_store_mappings = Some(map);
+            }
+        }
+
+        // 5. Package the remaining items uniformly as standard input variables
+        let inputs = inner_obj.into_iter().collect();
 
         Ok(ContractDefinition {
             id,
@@ -45,6 +64,8 @@ impl<'de> Deserialize<'de> for ContractDefinition {
         })
     }
 }
+
+// In src/server/core/manifest/manifest.rs
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct RouteDefinition {
@@ -59,8 +80,8 @@ pub struct RouteDefinition {
     #[serde(alias = "pipeline")]
     pub contracts: Vec<ContractDefinition>,
 
-    /// Fallback gracefully if a route doesn't explicitly declare a structural output layout block
-    #[serde(default)]
+    /// Matches either "output" or the minimalist rocket operator "=>"
+    #[serde(default, alias = "=>")]
     pub output: HashMap<String, Value>,
 }
 

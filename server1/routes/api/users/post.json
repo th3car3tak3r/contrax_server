@@ -1,0 +1,16 @@
+{
+  "name": "REST_test_route",
+  "pipeline": [
+    {
+      "users::get_by_id": { "user_id": "ad83js" },
+      "->": {
+        "user": {
+          "username": "out(username)"
+        }
+      }
+    }
+  ],
+  "=>": {
+    "json": { "user": "ctx(body/user_id)" }
+  }
+}
